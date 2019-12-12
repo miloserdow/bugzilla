@@ -319,6 +319,16 @@ sub page_requires_login {
   return $_[0]->request_cache->{page_requires_login};
 }
 
+sub github_secret {
+  my ($class) = @_;
+  my $cgi     = $class->cgi;
+
+  $_[0]->request_cache->{github_secret} //= $cgi->cookie('github_secret')
+    // generate_random_password(256);
+
+  return $_[0]->request_cache->{github_secret};
+}
+
 sub login {
   my ($class, $type) = @_;
 
@@ -334,12 +344,55 @@ sub login {
   # Allow templates to know that we're in a page that always requires
   # login.
   if ($type == LOGIN_REQUIRED) {
-    $class->request_cache->{page_requires_login} = 1;
+    $_[0]->request_cache->{page_requires_login} = 1;
   }
 
   my $authenticated_user = $authorizer->login($type);
 
+  if (i_am_cgi() && $authenticated_user->id) {
+    Bugzilla::Logging->fields->{user_id} = $authenticated_user->id;
+  }
+
   # At this point, we now know if a real person is logged in.
+
+  # Check if a password reset is required
+  my $cgi         = Bugzilla->cgi;
+  my $script_name = $cgi->script_name;
+  my $do_logout   = $cgi->param('logout');
+=begin
+  if (!i_am_webservice()
+	  #&& $authenticated_user->in_mfa_group
+	  #&& !$authenticated_user->mfa)
+  {
+
+    # decide if the user needs a warning or to be blocked.
+    my $date         = $authenticated_user->mfa_required_date('UTC');
+    my $grace_period = Bugzilla->params->{mfa_group_grace_period};
+    my $expired      = defined $date && $date < DateTime->now;
+    my $on_mfa_page
+      = $script_name eq '/userprefs.cgi' && $cgi->param('tab') eq 'mfa';
+    my $on_token_page = $script_name eq '/token.cgi';
+
+    Bugzilla->request_cache->{mfa_warning}              = 1;
+    Bugzilla->request_cache->{mfa_grace_period_expired} = $expired;
+    Bugzilla->request_cache->{on_mfa_page}              = $on_mfa_page;
+
+    if ($grace_period == 0 || $expired) {
+      if (!($on_mfa_page || $on_token_page || $do_logout)) {
+        $cgi->base_redirect('userprefs.cgi?tab=mfa');
+      }
+    }
+    else {
+      my $dbh = Bugzilla->dbh_main;
+      my $date = $dbh->sql_date_math('NOW()', '+', '?', 'DAY');
+      my ($mfa_required_date)
+        = $dbh->selectrow_array("SELECT $date", undef, $grace_period);
+      $authenticated_user->set_mfa_required_date($mfa_required_date);
+      $authenticated_user->update();
+    }
+  }
+=cut
+
   # We must now check to see if an sudo session is in progress.
   # For a session to be in progress, the following must be true:
   # 1: There must be a logged in user
@@ -365,7 +418,7 @@ sub login {
       && !$sudo_target->in_group('bz_sudo_protect'))
     {
       $class->set_user($sudo_target);
-      $class->request_cache->{sudoer} = $authenticated_user;
+      $_[0]->request_cache->{sudoer} = $authenticated_user;
 
       # And make sure that both users have the same Auth object,
       # since we never call Auth::login for the sudo target.
@@ -384,13 +437,21 @@ sub login {
     $class->set_user($authenticated_user);
   }
 
-  if ($class->sudoer) {
-    $class->sudoer->update_last_seen_date();
+  if (Bugzilla->sudoer) {
+    Bugzilla->sudoer->update_last_seen_date();
   }
   else {
     $class->user->update_last_seen_date();
   }
-
+=begin
+  # If Mojo native app is requesting login, we need to possibly redirect
+  my $C = $Bugzilla::App::CGI::C;
+  if ($C->session->{override_login_target}) {
+    my $mojo_url = Mojo::URL->new($C->session->{override_login_target});
+    $mojo_url->query($C->session->{cgi_params});
+    $C->redirect_to($mojo_url);
+  }
+=cut
   return $class->user;
 }
 

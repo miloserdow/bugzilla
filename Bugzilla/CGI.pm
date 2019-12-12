@@ -111,6 +111,24 @@ sub new {
   return $self;
 }
 
+sub target_uri {
+  my ($self) = @_;
+
+  my $base = Bugzilla->localconfig->{urlbase};
+  if ($base == "") {
+	  $base = "http://127.0.0.1";
+  }
+  if (my $request_uri = $self->request_uri) {
+    my $base_uri = URI->new($base);
+    $base_uri->path('');
+    $base_uri->query(undef);
+    return $base_uri . $request_uri;
+  }
+  else {
+    return $base . ($self->url(-relative => 0, -query => 1) || 'index.cgi');
+  }
+}
+
 # We want this sorted plus the ability to exclude certain params
 sub canonicalise_query {
   my ($self, @exclude) = @_;
@@ -407,6 +425,18 @@ sub header {
       %args
     );
   }
+  
+  # We generate a cookie and store it in the request cache
+  # To initiate github login, a form POSTs to github.cgi with the
+  # github_secret as a parameter. It must match the github_secret cookie.
+  # this prevents some types of redirection attacks.
+  unless ($user->id || $self->{bz_redirecting}) {
+    $self->send_cookie(
+      -name     => 'github_secret',
+      -value    => Bugzilla->github_secret,
+      -httponly => 1
+    );
+  }
 
   # Add the cookies in if we have any
   if (scalar(@{$self->{Bugzilla_cookie_list}})) {
@@ -673,6 +703,15 @@ sub url_is_attachment_base {
   }
   $regex = "^$regex";
   return ($self->url =~ $regex) ? 1 : 0;
+}
+
+sub base_redirect {
+  my ($self, $path, $is_perm) = @_;
+  print $self->redirect(
+    -location => Bugzilla->localconfig->{basepath} . ($path || ''),
+    -status   => $is_perm ? '301 Moved Permanently' : '302 Found'
+  );
+  exit;
 }
 
 sub set_dated_content_disp {

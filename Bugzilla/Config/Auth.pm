@@ -35,8 +35,8 @@ sub get_param_list {
     {
       name    => 'user_info_class',
       type    => 's',
-      choices => ['CGI', 'Env', 'Env,CGI'],
-      default => 'CGI',
+      choices => ['CGI', 'Env', 'Env,CGI', 'GitHubAuth,CGI'],
+      default => 'GitHubAuth,CGI',
       checker => \&check_multi
     },
 
