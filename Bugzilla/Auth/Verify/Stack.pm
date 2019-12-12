@@ -29,11 +29,12 @@ sub new {
   my %methods = map { $_ => "Bugzilla/Auth/Verify/$_.pm" } split(',', $list);
   lock_keys(%methods);
   Bugzilla::Hook::process('auth_verify_methods', {modules => \%methods});
+  
 
   $self->{_stack} = [];
   foreach my $verify_method (split(',', $list)) {
     my $module = $methods{$verify_method};
-    require $module;
+	require $module;
     $module =~ s|/|::|g;
     $module =~ s/.pm$//;
     push(@{$self->{_stack}}, $module->new(@_));

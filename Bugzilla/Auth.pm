@@ -37,7 +37,7 @@ sub new {
 
   $self->{_info_getter} = new Bugzilla::Auth::Login::Stack($params->{Login});
   $self->{_verifier}    = new Bugzilla::Auth::Verify::Stack($params->{Verify});
-
+  
   # If we ever have any other login persistence methods besides cookies,
   # this could become more configurable.
   $self->{_persister} = new Bugzilla::Auth::Persist::Cookie();
@@ -57,7 +57,7 @@ sub login {
 
   # Now verify their username and password against the DB, LDAP, etc.
   if ($self->{_info_getter}->{successful}->requires_verification) {
-    $login_info = $self->{_verifier}->check_credentials($login_info);
+	$login_info = $self->{_verifier}->check_credentials($login_info);
     if ($login_info->{failure}) {
       return $self->_handle_login_result($login_info, $type);
     }

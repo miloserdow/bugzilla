@@ -112,7 +112,6 @@ sub get_user_emails {
   $uri->query_form(access_token => $access_token);
 
   my $response = $self->user_agent->get($uri, Accept => 'application/json');
-
   return $self->_handle_response($response);
 }
 

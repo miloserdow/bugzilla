@@ -349,10 +349,6 @@ sub login {
 
   my $authenticated_user = $authorizer->login($type);
 
-  if (i_am_cgi() && $authenticated_user->id) {
-    Bugzilla::Logging->fields->{user_id} = $authenticated_user->id;
-  }
-
   # At this point, we now know if a real person is logged in.
 
   # Check if a password reset is required

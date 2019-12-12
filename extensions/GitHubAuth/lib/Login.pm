@@ -52,12 +52,6 @@ sub get_login_info {
         user_error => 'github_auth_account_too_powerful'
         }
         if $user->in_group('no-github-auth');
-      return {
-        failure    => AUTH_ERROR,
-        user_error => 'mfa_prevents_login',
-        details    => {provider => 'GitHub'}
-        }
-        if $user->mfa;
       $response = {username => $user->login, user_id => $user->id, github_auth => 1,};
     }
     else {

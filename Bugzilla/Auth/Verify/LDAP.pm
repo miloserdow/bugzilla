@@ -30,7 +30,6 @@ use constant user_can_create_account  => 0;
 sub check_credentials {
   my ($self, $params) = @_;
   my $dbh = Bugzilla->dbh;
-
   # We need to bind anonymously to the LDAP server.  This is
   # because we need to get the Distinguished Name of the user trying
   # to log in.  Some servers (such as iPlanet) allow you to have unique
