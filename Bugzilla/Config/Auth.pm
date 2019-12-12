@@ -43,8 +43,8 @@ sub get_param_list {
     {
       name    => 'user_verify_class',
       type    => 'o',
-      choices => ['DB', 'RADIUS', 'LDAP'],
-      default => 'DB',
+      choices => ['DB', 'RADIUS', 'LDAP', 'GitHubAuth,DB'],
+      default => 'GitHubAuth,DB',
       checker => \&check_user_verify_class
     },
 
